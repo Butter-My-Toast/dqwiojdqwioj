@@ -1,3 +1,4 @@
+import json
 import os
 import numpy as np
 from PIL import Image
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 def main():
     path = os.path.dirname(os.path.realpath(__file__))
     classes = ["beef_carpaccio", "monkey"]
+    # layers_dims = [12288, 20, 7, 5, 1]  # 4 layer model
 
     # y = 1 for "monkey"
     # y = 0 for "beef carpaccio"
@@ -39,38 +41,73 @@ def main():
     train_x = train_x_flatten / 255
     test_x = test_x_flatten / 255
 
+    parameters_list = []
+    accuracy_list = []
+    hyperparameter_list = []
     # Creating the model
-    logistic_regression_model = model(train_x, train_y_shuffle, test_x, test_y_shuffle, num_iterations=2000,
-                                      learning_rate=0.005, print_cost=True)
 
-    # Creating a list of indexes of test examples to show
-    indexes = [0, 1]
+    layer_dims = [[12288, 20, 7, 5, 1],
+                  [12288, 10, 5, 1],
+                  [12288, 50, 25, 12, 6, 1]]
+    iterations = [2500, 3000]
+    learning_rates = [0.00001, 0.0001, 0.001, 0.01, 0.1, 0.00005, 0.0005, 0.005, 0.05, 0.15]
 
-    show_prediction_example(logistic_regression_model, test_x, indexes)
+    for i in range(len(iterations)):
+        for j in range(len(layer_dims)):
+            for k in range(len(learning_rates)):
+                try:
+                    parameters, costs = model(train_x, train_y_shuffle, layer_dims[j], learning_rate=learning_rates[k],
+                                              num_iterations=iterations[i], print_cost=False)
+                    parameters_dict = {}
+                    for key in parameters:
+                        parameters_dict[key] = parameters[key].tolist()
+                    parameters_list.append(parameters_dict)
+                    _, train_accuracy = predict(train_x, train_y_shuffle, parameters, print_accuracy=False)
+                    _, test_accuracy = predict(test_x, test_y_shuffle, parameters, print_accuracy=False)
+                    accuracies = (train_accuracy, test_accuracy)
+                    accuracy_list.append(accuracies)
+                    hyperparameters = (iterations[i], layer_dims[j], learning_rates[k])
+                    hyperparameter_list.append(hyperparameters)
+                except:
+                    pass
 
-    # Plotting the cost function every hundred iterations
-    costs = np.squeeze(logistic_regression_model['costs'])
-    plt.plot(costs)
-    plt.ylabel('Cost')
-    plt.xlabel('Iterations (hundreds)')
-    plt.title("Learning rate = " + str(logistic_regression_model["learning_rate"]))
-    plt.show()
+    with open('parameter_list.json', 'w') as f:
+        json.dump(parameters_list, f)
 
-    # Add your own test image to the same directory and change the test image to the file name
-    # to see the model's prediction of your image
-    test_image = "unclefatty.jpg"
+    with open('accuracy_list.json', 'w') as f:
+        json.dump(accuracy_list, f)
 
-    if test_image != "none":
-        fname = os.path.join(path, test_image)
-        image = np.array(Image.open(fname).resize((64, 64)))
-        plt.imshow(image)
-        image = image.reshape((64 * 64 * 3, 1))
-        image = image / 255
-        y_prediction = int(np.squeeze(predict(logistic_regression_model["w"], logistic_regression_model["b"], image)))
-        class_prediction = "\"monkey\"" if y_prediction == 1 else "\"beef carpaccio\""
-        plt.title(f"y = {y_prediction}, the model predicted that it is a {class_prediction} picture.")
-        plt.axis('off')
-        plt.show()
+    with open('hyperparameter_list.json', 'w') as f:
+        json.dump(hyperparameter_list, f)
+
+    # # Creating a list of indexes of test examples to show
+    # indexes = [0, 1]
+    #
+    # show_prediction_example(logistic_regression_model, test_x, indexes)
+    #
+    # # Plotting the cost function every hundred iterations
+    # costs = np.squeeze(logistic_regression_model['costs'])
+    # plt.plot(costs)
+    # plt.ylabel('Cost')
+    # plt.xlabel('Iterations (hundreds)')
+    # plt.title("Learning rate = " + str(logistic_regression_model["learning_rate"]))
+    # plt.show()
+    #
+    # # Add your own test image to the same directory and change the test image to the file name
+    # # to see the model's prediction of your image
+    # test_image = "none"
+    #
+    # if test_image != "none":
+    #     fname = os.path.join(path, test_image)
+    #     image = np.array(Image.open(fname).resize((64, 64)))
+    #     plt.imshow(image)
+    #     image = image.reshape((64 * 64 * 3, 1))
+    #     image = image / 255
+    #     y_prediction = int(np.squeeze(predict(logistic_regression_model["w"], logistic_regression_model["b"], image)))
+    #     class_prediction = "\"monkey\"" if y_prediction == 1 else "\"beef carpaccio\""
+    #     plt.title(f"y = {y_prediction}, the model predicted that it is a {class_prediction} picture.")
+    #     plt.axis('off')
+    #     plt.show()
 
 
 def load_dataset(path, classes):
@@ -83,7 +120,7 @@ def load_dataset(path, classes):
         for img_path in os.listdir(class_path):
             img = Image.open(os.path.join(class_path, img_path))
             x.append(np.array(img))
-            y.append(np.array(label))
+            y.append((label))
 
     return np.array(x), np.array(y)
 
@@ -94,102 +131,181 @@ def shuffle_set(set_x, set_y):
     return set_x[permutation], set_y[permutation]
 
 
-def sigmoid(z):
-    s = 1 / (1 + np.exp(-z))
-    return s
+def predict(X, Y, parameters, print_accuracy=True):
 
-
-# Creates a column vector with shape (dim, 1) to represent the weights (w) and initialized the bias (b) to zero
-def initialize_with_zeros(dim):
-    w = np.zeros((dim, 1), dtype=float)
-    b = float(0)
-    return w, b
-
-
-def propagate(w, b, X, Y):
-    # m - the number of examples
     m = X.shape[1]
+    n = len(parameters) // 2  # number of layers in the neural network
+    p = np.zeros((1, m))
 
-    # Forward propagation
-    a = sigmoid(np.dot(w.T, X) + b)
-    cost = (-1 / m) * (np.dot(Y, np.log(a).T) + np.dot(1 - Y, np.log(1 - a).T))
+    probas, caches = forward_propagation(X, parameters)
 
-    # Backward propagation
-    dw = (1 / m) * np.dot(X, (a - Y).T)
-    db = (1 / m) * np.sum(a - Y)
+    for i in range(0, probas.shape[1]):
+        if probas[0, i] > 0.5:
+            p[0, i] = 1
+        else:
+            p[0, i] = 0
 
-    cost = np.squeeze(np.array(cost))
+    accuracy = np.sum((p == Y) / m)
 
-    grads = {"dw": dw,
-             "db": db}
+    if print_accuracy:
+        print("Accuracy: " + str(accuracy))
 
-    return grads, cost
+    return p, accuracy
 
 
-def optimize(w, b, X, Y, num_iterations=2000, learning_rate=0.5, print_cost=False):
-    w = copy.deepcopy(w)
-    b = copy.deepcopy(b)
+def relu(Z):
+    A = np.maximum(0, Z)
+    cache = Z
+    return A, cache
 
+
+def relu_backward(dA, cache):
+    Z = cache
+    dZ = np.array(dA, copy=True)
+    dZ[Z <= 0] = 0
+    return dZ
+
+
+def sigmoid(Z):
+    A = 1 / (1 + np.exp(-Z))
+    cache = Z
+    return A, cache
+
+
+def sigmoid_backward(dA, cache):
+    Z = cache
+    s = 1 / (1 + np.exp(-Z))
+    dZ = dA * s * (1 - s)
+
+    return dZ
+
+
+def linear_backward(dZ, cache):
+
+    A_prev, W, b = cache
+    m = A_prev.shape[1]
+    dW = (1 / m) * np.dot(dZ, A_prev.T)
+    db = (1 / m) * np.sum(dZ, axis=1, keepdims=True)
+    dA_prev = np.dot(W.T, dZ)
+    return dA_prev, dW, db
+
+
+def initialize_parameters(layers_dims):
+    parameters = {}
+    for layer in range(1, len(layers_dims)):
+        parameters['W' + str(layer)] = np.random.randn(layers_dims[layer], layers_dims[layer - 1]) * 0.01
+        parameters['b' + str(layer)] = np.zeros((layers_dims[layer], 1))
+    return parameters
+
+
+def compute_activation(A_prev, W, b, activation):
+    if activation == "relu":
+        Z = np.dot(W, A_prev) + b
+        linear_cache = (A_prev, W, b)
+        A, activation_cache = relu(Z)
+    elif activation == "sigmoid":
+        Z = np.dot(W, A_prev) + b
+        linear_cache = (A_prev, W, b)
+        A, activation_cache = sigmoid(Z)
+
+    cache = (linear_cache, activation_cache)
+
+    return A, cache
+
+
+def forward_propagation(X, parameters):
+
+    caches = []
+    A = X
+    layers = len(parameters) // 2
+    for layer in range(1, layers):
+        A_prev = A
+        A, cache = compute_activation(A_prev, parameters['W' + str(layer)], parameters['b' + str(layer)], "relu")
+        caches.append(cache)
+
+    AL, cache = compute_activation(A, parameters['W' + str(layers)], parameters['b' + str(layers)], "sigmoid")
+    caches.append(cache)
+
+    return AL, caches
+
+
+def compute_linear_derivatives(dA, cache, activation):
+    linear_cache, activation_cache = cache
+
+    if activation == "relu":
+        dZ = relu_backward(dA, activation_cache)
+
+        dA_prev, dW, db = linear_backward(dZ, linear_cache)
+
+    elif activation == "sigmoid":
+        dZ = sigmoid_backward(dA, activation_cache)
+        dA_prev, dW, db = linear_backward(dZ, linear_cache)
+
+    return dA_prev, dW, db
+
+
+def backward_propagation(AL, Y, caches):
+    grads = {}
+    layers = len(caches)
+    m = AL.shape[1]
+    Y = Y.reshape(AL.shape)
+
+    dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
+
+    current_cache = caches[layers - 1]
+
+    dA_prev_temp, dW_temp, db_temp = compute_linear_derivatives(dAL, current_cache, "sigmoid")
+
+    grads['dA' + str(layers - 1)] = dA_prev_temp
+    grads['dW' + str(layers)] = dW_temp
+    grads['db' + str(layers)] = db_temp
+
+    for layer in reversed(range(layers - 1)):
+        current_cache = caches[layer]
+        dA_prev_temp, dW_temp, db_temp = compute_linear_derivatives(grads["dA" + str(layer+1)], current_cache, "relu")
+        grads['dA' + str(layer)] = dA_prev_temp
+        grads['dW' + str(layer+1)] = dW_temp
+        grads['db' + str(layer+1)] = db_temp
+
+    return grads
+
+
+def update_parameters(params, grads, learning_rate):
+    parameters = params.copy()
+    layers = len(parameters) // 2
+
+    for layer in range(layers):
+        parameters['W' + str(layer+1)] = parameters['W' + str(layer+1)] - learning_rate * grads['dW' + str(layer+1)]
+        parameters['b' + str(layer+1)] = parameters['b' + str(layer+1)] - learning_rate * grads['db' + str(layer+1)]
+
+    return parameters
+
+
+def model(X, Y, layers_dims, learning_rate=0.0075, num_iterations=3000, print_cost=True):
     costs = []
+    parameters = initialize_parameters(layers_dims)
 
+    # gradient descent
     for i in range(num_iterations):
-        grads, cost = propagate(w, b, X, Y)
-        dw = grads["dw"]
-        db = grads["db"]
-        w = w - learning_rate * dw
-        b = b - learning_rate * db
+        # forward propagation
+        AL, caches = forward_propagation(X, parameters)
 
-        if i % 100 == 0:
+        # cost computation
+        cost = (-1 / Y.shape[1]) * (np.dot(Y, np.log(AL).T) + np.dot((1 - Y), np.log(1 - AL).T))
+        cost = np.squeeze(cost)
+
+        # backward propagation
+        grads = backward_propagation(AL, Y, caches)
+
+        # update parameters
+        parameters = update_parameters(parameters, grads, learning_rate)
+
+        if print_cost and i % 100 == 0 or i == num_iterations - 1:
+            print("Cost after iteration {}: {}".format(i, np.squeeze(cost)))
+        if i % 100 == 0 or i == num_iterations:
             costs.append(cost)
 
-            if print_cost:
-                print("Cost after iteration " + str(i) + ": " + str(cost))
-
-    params = {"w": w,
-              "b": b}
-
-    grads = {"dw": dw,
-             "db": db}
-
-    return params, grads, costs
-
-
-def predict(w, b, X):
-    m = X.shape[1]
-    yhat = np.zeros((1, m))
-    w = w.reshape(X.shape[0], 1)
-
-    A = sigmoid(np.dot(w.T, X) + b)
-    for i in range(A.shape[1]):
-        if A[0, i] > 0.5:
-            yhat[0, i] = 1
-        else:
-            yhat[0, i] = 0
-
-    return yhat
-
-
-def model(train_x, train_y, test_x, test_y, num_iterations=2000, learning_rate=0.5, print_cost=True):
-    w, b = initialize_with_zeros(train_x.shape[0])
-    params, grads, costs = optimize(w, b, train_x, train_y, num_iterations, learning_rate, print_cost)
-    w = params["w"]
-    b = params["b"]
-    Y_prediction_train = predict(w, b, train_x)
-    Y_prediction_test = predict(w, b, test_x)
-
-    if print_cost:
-        print("Train accuracy: {} %".format(100 - np.mean(np.abs(Y_prediction_train - train_y)) * 100))
-        print("Test accuracy: {} %".format(100 - np.mean(np.abs(Y_prediction_test - test_y)) * 100))
-
-    model_dict = {"costs": costs,
-                  "Y_prediction_test": Y_prediction_test,
-                  "Y_prediction_train": Y_prediction_train,
-                  "w": w,
-                  "b": b,
-                  "learning_rate": learning_rate,
-                  "num_iterations": num_iterations}
-
-    return model_dict
+    return parameters, costs
 
 
 def show_prediction_example(model, test_x, index):
