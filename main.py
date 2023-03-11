@@ -8,14 +8,14 @@ import matplotlib.pyplot as plt
 
 def main():
     path = os.path.dirname(os.path.realpath(__file__))
-    classes = ["beef_carpaccio", "monkey"]
+    classes = ["gorilla", "monkey"]
     # layers_dims = [12288, 20, 7, 5, 1]  # 4 layer model
 
     # y = 1 for "monkey"
     # y = 0 for "beef carpaccio"
-    train_x_orig, train_y_orig = load_dataset(os.path.join(path, "MonkeyVsBeefCarpaccioDataset", "train"), classes)
+    train_x_orig, train_y_orig = load_dataset(os.path.join(path, "MonkeyVsGorillaDataset"), "train", classes)
 
-    test_x_orig, test_y_orig = load_dataset(os.path.join(path, "MonkeyVsBeefCarpaccioDataset", "test"), classes)
+    test_x_orig, test_y_orig = load_dataset(os.path.join(path, "MonkeyVsGorillaDataset"), "test", classes)
 
     # Shuffling the sets so that the model doesn't learn in a certain order and bias towards beef carpaccio
     train_x_shuffle, train_y_shuffle = shuffle_set(train_x_orig, train_y_orig)
@@ -46,9 +46,9 @@ def main():
     hyperparameter_list = []
     # Creating the model
 
-    layer_dims = [[12288, 20, 7, 5, 1],
-                  [12288, 10, 5, 1],
-                  [12288, 50, 25, 12, 6, 1]]
+    layer_dims = [[196608, 20, 7, 5, 1],
+                  [196608, 10, 5, 1],
+                  [196608, 50, 25, 12, 6, 1]]
     iterations = [2500, 3000]
     learning_rates = [0.00001, 0.0001, 0.001, 0.01, 0.1, 0.00005, 0.0005, 0.005, 0.05, 0.15]
 
@@ -57,13 +57,13 @@ def main():
             for k in range(len(learning_rates)):
                 try:
                     parameters, costs = model(train_x, train_y_shuffle, layer_dims[j], learning_rate=learning_rates[k],
-                                              num_iterations=iterations[i], print_cost=False)
+                                              num_iterations=iterations[i], print_cost=True)
                     parameters_dict = {}
                     for key in parameters:
                         parameters_dict[key] = parameters[key].tolist()
                     parameters_list.append(parameters_dict)
-                    _, train_accuracy = predict(train_x, train_y_shuffle, parameters, print_accuracy=False)
-                    _, test_accuracy = predict(test_x, test_y_shuffle, parameters, print_accuracy=False)
+                    _, train_accuracy = predict(train_x, train_y_shuffle, parameters, print_accuracy=True)
+                    _, test_accuracy = predict(test_x, test_y_shuffle, parameters, print_accuracy=True)
                     accuracies = (train_accuracy, test_accuracy)
                     accuracy_list.append(accuracies)
                     hyperparameters = (iterations[i], layer_dims[j], learning_rates[k])
@@ -110,17 +110,17 @@ def main():
     #     plt.show()
 
 
-def load_dataset(path, classes):
+def load_dataset(path, dataset_split, classes):
     x = []
     y = []
-    # 0 for beef carpaccio
+    # 0 for gorilla
     # 1 for monkey
     for label, cls in enumerate(classes):
-        class_path = os.path.join(path, cls)
+        class_path = os.path.join(path, dataset_split, cls)
         for img_path in os.listdir(class_path):
-            img = Image.open(os.path.join(class_path, img_path))
+            img = Image.open(os.path.join(class_path, img_path)).resize((256, 256))
             x.append(np.array(img))
-            y.append((label))
+            y.append(label)
 
     return np.array(x), np.array(y)
 
@@ -310,7 +310,7 @@ def model(X, Y, layers_dims, learning_rate=0.0075, num_iterations=3000, print_co
 
 def show_prediction_example(model, test_x, index):
     for i in index:
-        plt.imshow(test_x[:, i].reshape((64, 64, 3)))
+        plt.imshow(test_x[:, i].reshape((256, 256, 3)))
         y_prediction = int(model['Y_prediction_test'][0, i])
         class_prediction = "\"monkey\"" if y_prediction == 1 else "\"beef carpaccio\""
         plt.title(f"y = {y_prediction}, the model predicted that it is a {class_prediction} picture.")
