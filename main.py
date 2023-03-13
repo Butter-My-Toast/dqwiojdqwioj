@@ -1,8 +1,6 @@
-import json
 import os
 import numpy as np
 from PIL import Image
-import copy
 import matplotlib.pyplot as plt
 
 
@@ -27,10 +25,6 @@ def main():
     train_y_shuffle = train_y_shuffle.reshape(1, train_y_shuffle.shape[0])
     test_y_shuffle = test_y_shuffle.reshape(1, test_y_shuffle.shape[0])
 
-    m_train = train_x_shuffle.shape[0]
-    m_test = test_x_shuffle.shape[0]
-    num_px = train_x_shuffle.shape[1]
-
     # Flattens and transposes the input sets so that each column vector is a different example of the flattened image
     train_x_flatten = train_x_shuffle.reshape(train_x_shuffle.shape[0], -1).T
     test_x_flatten = test_x_shuffle.reshape(test_x_shuffle.shape[0], -1).T
@@ -46,39 +40,19 @@ def main():
     hyperparameter_list = []
     # Creating the model
 
-    layer_dims = [[196608, 20, 7, 5, 1],
-                  [196608, 10, 5, 1],
-                  [196608, 50, 25, 12, 6, 1]]
-    iterations = [2500, 3000]
-    learning_rates = [0.00001, 0.0001, 0.001, 0.01, 0.1, 0.00005, 0.0005, 0.005, 0.05, 0.15]
+    layer_dims = [196608, 20, 7, 5, 1]
+    # layer_dims = [[196608, 20, 7, 5, 1],
+    #               [196608, 10, 5, 1],
+    #               [196608, 50, 25, 12, 6, 1]] gave 85% with 0.0001 training rate
+    iterations = 2500
+    learning_rate = 0.002
+    # learning_rates = [0.00001, 0.0001, 0.001, 0.01, 0.1, 0.00005, 0.0005, 0.005, 0.05, 0.15]
 
-    for i in range(len(iterations)):
-        for j in range(len(layer_dims)):
-            for k in range(len(learning_rates)):
-                try:
-                    parameters, costs = model(train_x, train_y_shuffle, layer_dims[j], learning_rate=learning_rates[k],
-                                              num_iterations=iterations[i], print_cost=True)
-                    parameters_dict = {}
-                    for key in parameters:
-                        parameters_dict[key] = parameters[key].tolist()
-                    parameters_list.append(parameters_dict)
-                    _, train_accuracy = predict(train_x, train_y_shuffle, parameters, print_accuracy=True)
-                    _, test_accuracy = predict(test_x, test_y_shuffle, parameters, print_accuracy=True)
-                    accuracies = (train_accuracy, test_accuracy)
-                    accuracy_list.append(accuracies)
-                    hyperparameters = (iterations[i], layer_dims[j], learning_rates[k])
-                    hyperparameter_list.append(hyperparameters)
-                except:
-                    pass
+    parameters, cost = model(train_x, train_y_shuffle, layer_dims, learning_rate=learning_rate,
+                             num_iterations=iterations, print_cost=True)
+    _, train_accuracy = predict(train_x, train_y_shuffle, parameters, print_accuracy=True)
+    _, test_accuracy = predict(test_x, test_y_shuffle, parameters, print_accuracy=True)
 
-    with open('parameter_list.json', 'w') as f:
-        json.dump(parameters_list, f)
-
-    with open('accuracy_list.json', 'w') as f:
-        json.dump(accuracy_list, f)
-
-    with open('hyperparameter_list.json', 'w') as f:
-        json.dump(hyperparameter_list, f)
 
     # # Creating a list of indexes of test examples to show
     # indexes = [0, 1]
@@ -86,15 +60,15 @@ def main():
     # show_prediction_example(logistic_regression_model, test_x, indexes)
     #
     # # Plotting the cost function every hundred iterations
-    # costs = np.squeeze(logistic_regression_model['costs'])
+    # costs = np.squeeze(logistic_regression_model["costs"])
     # plt.plot(costs)
-    # plt.ylabel('Cost')
-    # plt.xlabel('Iterations (hundreds)')
+    # plt.ylabel("Cost")
+    # plt.xlabel("Iterations (hundreds)")
     # plt.title("Learning rate = " + str(logistic_regression_model["learning_rate"]))
     # plt.show()
     #
     # # Add your own test image to the same directory and change the test image to the file name
-    # # to see the model's prediction of your image
+    # # to see the model"s prediction of your image
     # test_image = "none"
     #
     # if test_image != "none":
@@ -106,7 +80,7 @@ def main():
     #     y_prediction = int(np.squeeze(predict(logistic_regression_model["w"], logistic_regression_model["b"], image)))
     #     class_prediction = "\"monkey\"" if y_prediction == 1 else "\"beef carpaccio\""
     #     plt.title(f"y = {y_prediction}, the model predicted that it is a {class_prediction} picture.")
-    #     plt.axis('off')
+    #     plt.axis("off")
     #     plt.show()
 
 
@@ -132,7 +106,6 @@ def shuffle_set(set_x, set_y):
 
 
 def predict(X, Y, parameters, print_accuracy=True):
-
     m = X.shape[1]
     n = len(parameters) // 2  # number of layers in the neural network
     p = np.zeros((1, m))
@@ -181,11 +154,10 @@ def sigmoid_backward(dA, cache):
 
 
 def linear_backward(dZ, cache):
-
     A_prev, W, b = cache
     m = A_prev.shape[1]
-    dW = (1 / m) * np.dot(dZ, A_prev.T)
-    db = (1 / m) * np.sum(dZ, axis=1, keepdims=True)
+    dW = (1. / m) * np.dot(dZ, A_prev.T)
+    db = (1. / m) * np.sum(dZ, axis=1, keepdims=True)
     dA_prev = np.dot(W.T, dZ)
     return dA_prev, dW, db
 
@@ -193,8 +165,8 @@ def linear_backward(dZ, cache):
 def initialize_parameters(layers_dims):
     parameters = {}
     for layer in range(1, len(layers_dims)):
-        parameters['W' + str(layer)] = np.random.randn(layers_dims[layer], layers_dims[layer - 1]) * 0.01
-        parameters['b' + str(layer)] = np.zeros((layers_dims[layer], 1))
+        parameters["W" + str(layer)] = np.random.randn(layers_dims[layer], layers_dims[layer - 1]) * 0.01
+        parameters["b" + str(layer)] = np.zeros((layers_dims[layer], 1))
     return parameters
 
 
@@ -214,16 +186,15 @@ def compute_activation(A_prev, W, b, activation):
 
 
 def forward_propagation(X, parameters):
-
     caches = []
     A = X
     layers = len(parameters) // 2
     for layer in range(1, layers):
         A_prev = A
-        A, cache = compute_activation(A_prev, parameters['W' + str(layer)], parameters['b' + str(layer)], "relu")
+        A, cache = compute_activation(A_prev, parameters["W" + str(layer)], parameters["b" + str(layer)], "relu")
         caches.append(cache)
 
-    AL, cache = compute_activation(A, parameters['W' + str(layers)], parameters['b' + str(layers)], "sigmoid")
+    AL, cache = compute_activation(A, parameters["W" + str(layers)], parameters["b" + str(layers)], "sigmoid")
     caches.append(cache)
 
     return AL, caches
@@ -256,27 +227,28 @@ def backward_propagation(AL, Y, caches):
 
     dA_prev_temp, dW_temp, db_temp = compute_linear_derivatives(dAL, current_cache, "sigmoid")
 
-    grads['dA' + str(layers - 1)] = dA_prev_temp
-    grads['dW' + str(layers)] = dW_temp
-    grads['db' + str(layers)] = db_temp
+    grads["dA" + str(layers - 1)] = dA_prev_temp
+    grads["dW" + str(layers)] = dW_temp
+    grads["db" + str(layers)] = db_temp
 
     for layer in reversed(range(layers - 1)):
         current_cache = caches[layer]
-        dA_prev_temp, dW_temp, db_temp = compute_linear_derivatives(grads["dA" + str(layer+1)], current_cache, "relu")
-        grads['dA' + str(layer)] = dA_prev_temp
-        grads['dW' + str(layer+1)] = dW_temp
-        grads['db' + str(layer+1)] = db_temp
+        dA_prev_temp, dW_temp, db_temp = compute_linear_derivatives(grads["dA" + str(layer + 1)], current_cache, "relu")
+        grads["dA" + str(layer)] = dA_prev_temp
+        grads["dW" + str(layer + 1)] = dW_temp
+        grads["db" + str(layer + 1)] = db_temp
 
     return grads
 
 
-def update_parameters(params, grads, learning_rate):
-    parameters = params.copy()
+def update_parameters(parameters, grads, learning_rate):
     layers = len(parameters) // 2
 
     for layer in range(layers):
-        parameters['W' + str(layer+1)] = parameters['W' + str(layer+1)] - learning_rate * grads['dW' + str(layer+1)]
-        parameters['b' + str(layer+1)] = parameters['b' + str(layer+1)] - learning_rate * grads['db' + str(layer+1)]
+        parameters["W" + str(layer + 1)] = parameters["W" + str(layer + 1)] - learning_rate * grads[
+            "dW" + str(layer + 1)]
+        parameters["b" + str(layer + 1)] = parameters["b" + str(layer + 1)] - learning_rate * grads[
+            "db" + str(layer + 1)]
 
     return parameters
 
@@ -291,7 +263,7 @@ def model(X, Y, layers_dims, learning_rate=0.0075, num_iterations=3000, print_co
         AL, caches = forward_propagation(X, parameters)
 
         # cost computation
-        cost = (-1 / Y.shape[1]) * (np.dot(Y, np.log(AL).T) + np.dot((1 - Y), np.log(1 - AL).T))
+        cost = (1. / Y.shape[1]) * (-np.dot(Y, np.log(AL).T) - np.dot((1 - Y), np.log(1 - AL).T))
         cost = np.squeeze(cost)
 
         # backward propagation
@@ -311,12 +283,12 @@ def model(X, Y, layers_dims, learning_rate=0.0075, num_iterations=3000, print_co
 def show_prediction_example(model, test_x, index):
     for i in index:
         plt.imshow(test_x[:, i].reshape((256, 256, 3)))
-        y_prediction = int(model['Y_prediction_test'][0, i])
+        y_prediction = int(model["Y_prediction_test"][0, i])
         class_prediction = "\"monkey\"" if y_prediction == 1 else "\"beef carpaccio\""
         plt.title(f"y = {y_prediction}, the model predicted that it is a {class_prediction} picture.")
-        plt.axis('off')
+        plt.axis("off")
         plt.show()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
