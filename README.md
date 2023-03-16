@@ -1,6 +1,6 @@
 
 # Monkey vs Gorilla Neural Network Classification Model
-This is a binary classification machine learning model, developed without the use of machine learning frameworks, that implements a neural network model that uses a series of interconnected layers to extract features from an input image and predict whether a given 256 x 256 pixel image is a monkey or a gorilla.
+This is a binary classification machine learning model (developed without the use of pre-existing machine learning frameworks) that implements a neural network model that uses a series of interconnected layers to extract features from an input image and predict whether a given 256 x 256 pixel image is a monkey or a gorilla.
 
 The input image is preprocessed by flattening it into a column vector and normalizing each pixel value by dividing them by 255. The model then passes the input through a series of hidden layers, each consisting of interconnected neurons, with each neuron performing a weighted sum of its inputs and passing the result through the rectified linear unit (ReLU) activation function.
 
