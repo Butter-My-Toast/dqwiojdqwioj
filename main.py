@@ -10,12 +10,12 @@ def main():
     # layers_dims = [12288, 20, 7, 5, 1]  # 4 layer model
 
     # y = 1 for "monkey"
-    # y = 0 for "beef carpaccio"
+    # y = 0 for "gorilla"
     train_x_orig, train_y_orig = load_dataset(os.path.join(path, "MonkeyVsGorillaDataset"), "train", classes)
 
     test_x_orig, test_y_orig = load_dataset(os.path.join(path, "MonkeyVsGorillaDataset"), "test", classes)
 
-    # Shuffling the sets so that the model doesn't learn in a certain order and bias towards beef carpaccio
+    # Shuffling the sets so that the model doesn't learn in a certain order and bias towards gorilla
     train_x_shuffle, train_y_shuffle = shuffle_set(train_x_orig, train_y_orig)
     test_x_shuffle, test_y_shuffle = shuffle_set(test_x_orig, test_y_orig)
 
@@ -38,15 +38,12 @@ def main():
     parameters_list = []
     accuracy_list = []
     hyperparameter_list = []
+    
     # Creating the model
 
     layer_dims = [196608, 20, 7, 5, 1]
-    # layer_dims = [[196608, 20, 7, 5, 1],
-    #               [196608, 10, 5, 1],
-    #               [196608, 50, 25, 12, 6, 1]] gave 85% with 0.0001 training rate
     iterations = 2500
     learning_rate = 0.002
-    # learning_rates = [0.00001, 0.0001, 0.001, 0.01, 0.1, 0.00005, 0.0005, 0.005, 0.05, 0.15]
 
     parameters, cost = model(train_x, train_y_shuffle, layer_dims, learning_rate=learning_rate,
                              num_iterations=iterations, print_cost=True)
@@ -54,34 +51,35 @@ def main():
     _, test_accuracy = predict(test_x, test_y_shuffle, parameters, print_accuracy=True)
 
 
-    # # Creating a list of indexes of test examples to show
-    # indexes = [0, 1]
-    #
-    # show_prediction_example(logistic_regression_model, test_x, indexes)
-    #
-    # # Plotting the cost function every hundred iterations
-    # costs = np.squeeze(logistic_regression_model["costs"])
-    # plt.plot(costs)
-    # plt.ylabel("Cost")
-    # plt.xlabel("Iterations (hundreds)")
-    # plt.title("Learning rate = " + str(logistic_regression_model["learning_rate"]))
-    # plt.show()
-    #
-    # # Add your own test image to the same directory and change the test image to the file name
-    # # to see the model"s prediction of your image
-    # test_image = "none"
-    #
-    # if test_image != "none":
-    #     fname = os.path.join(path, test_image)
-    #     image = np.array(Image.open(fname).resize((64, 64)))
-    #     plt.imshow(image)
-    #     image = image.reshape((64 * 64 * 3, 1))
-    #     image = image / 255
-    #     y_prediction = int(np.squeeze(predict(logistic_regression_model["w"], logistic_regression_model["b"], image)))
-    #     class_prediction = "\"monkey\"" if y_prediction == 1 else "\"beef carpaccio\""
-    #     plt.title(f"y = {y_prediction}, the model predicted that it is a {class_prediction} picture.")
-    #     plt.axis("off")
-    #     plt.show()
+    # Creating a list of indexes of test examples to show
+    indexes = [0, 1]
+    
+    show_prediction_example(logistic_regression_model, test_x, indexes)
+    
+    # Plotting the cost function every hundred iterations
+    costs = np.squeeze(logistic_regression_model["costs"])
+    plt.plot(costs)
+    plt.ylabel("Cost")
+    plt.xlabel("Iterations (hundreds)")
+    plt.title("Learning rate = " + str(logistic_regression_model["learning_rate"]))
+    plt.show()
+    
+    # Add your own test image to the same directory and change the test image to the file name
+    # to see the model"s prediction of your image
+    test_image = "none"
+    test_true_label = [-1] # the true class of the test image (1 for monkey, 0 for gorilla)
+    
+    if test_image != "none":
+        fname = os.path.join(path, test_image)
+        image = np.array(Image.open(fname).resize((256, 256)))
+        plt.imshow(image)
+        image = image.reshape((256 * 256 * 3, 1))
+        image = image / 255
+        y_prediction = int(np.squeeze(predict(image, test_true_label, parameters)))
+        class_prediction = "\"monkey\"" if y_prediction == 1 else "\"gorilla\""
+        plt.title(f"y = {y_prediction}, the model predicted that it is a {class_prediction} picture.")
+        plt.axis("off")
+        plt.show()
 
 
 def load_dataset(path, dataset_split, classes):
@@ -284,7 +282,7 @@ def show_prediction_example(model, test_x, index):
     for i in index:
         plt.imshow(test_x[:, i].reshape((256, 256, 3)))
         y_prediction = int(model["Y_prediction_test"][0, i])
-        class_prediction = "\"monkey\"" if y_prediction == 1 else "\"beef carpaccio\""
+        class_prediction = "\"monkey\"" if y_prediction == 1 else "\"gorilla""
         plt.title(f"y = {y_prediction}, the model predicted that it is a {class_prediction} picture.")
         plt.axis("off")
         plt.show()
