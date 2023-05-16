@@ -54,14 +54,14 @@ def main():
     # Creating a list of indexes of test examples to show
     indexes = [0, 1]
     
-    show_prediction_example(logistic_regression_model, test_x, indexes)
+    show_prediction_example(model, test_x, indexes)
     
     # Plotting the cost function every hundred iterations
-    costs = np.squeeze(logistic_regression_model["costs"])
+    costs = np.squeeze(model["costs"])
     plt.plot(costs)
     plt.ylabel("Cost")
     plt.xlabel("Iterations (hundreds)")
-    plt.title("Learning rate = " + str(logistic_regression_model["learning_rate"]))
+    plt.title("Learning rate = " + str(model["learning_rate"]))
     plt.show()
     
     # Add your own test image to the same directory and change the test image to the file name
