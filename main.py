@@ -61,7 +61,7 @@ def main():
     plt.plot(costs)
     plt.ylabel("Cost")
     plt.xlabel("Iterations (hundreds)")
-    plt.title("Learning rate = " + str(learning_rate)
+    plt.title("Learning rate = " + str(learning_rate))
     plt.show()
     
     # Add your own test image to the same directory and change the test image to the file name
